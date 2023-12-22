@@ -3,10 +3,10 @@ on:
   push:
     branches:
       - v*
+      - main
   pull_request:
     branches:
       - main
-
 
 jobs:
   build:
@@ -40,7 +40,7 @@ jobs:
           mvn --no-transfer-progress install -DskipTests
 
       - name: "Docker Build Release"
-        if: startsWith(github.ref, 'refs/heads/v') && github.event_name == 'push'     
+        if: startsWith(github.ref, 'refs/heads/v') || github.ref == 'refs/heads/main' && github.event_name == 'push' 
         uses: docker/build-push-action@v5.0.0
         with:
           context: ./
@@ -53,7 +53,7 @@ jobs:
           build-args: |
             webgoat_version=${{ env.WEBGOAT_MAVEN_VERSION }}
 
-      - name: Mend CLI Image Scan
+      - name: Mend CLI Image Scan on Release
         if: startsWith(github.ref, 'refs/heads/v') && github.event_name == 'push'
         env:
           MEND_EMAIL: ${{secrets.MEND_EMAIL}}
@@ -64,6 +64,19 @@ jobs:
           curl -LJO https://downloads.mend.io/production/unified/latest/linux_amd64/mend && chmod +x mend
           echo "Start Mend image scan"
           ./mend image webgoat/webgoat:${{ env.WEBGOAT_TAG_VERSION }} -s *//GH_${{github.event.repository.name}}//GH_${{github.event.repository.name}}_${{github.ref_name}}
+
+      - name: Mend CLI Image Scan on Main
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        env:
+          MEND_EMAIL: ${{secrets.MEND_EMAIL}}
+          MEND_USER_KEY: ${{secrets.MEND_USER_KEY}}
+          MEND_URL: https://saas.mend.io
+        run: |
+          echo Downloading Mend CLI
+          curl -LJO https://downloads.mend.io/production/unified/latest/linux_amd64/mend && chmod +x mend
+          echo "Start Mend image scan"
+          ./mend image webgoat/webgoat:${{ env.WEBGOAT_TAG_VERSION }} -s *//GH_${{github.event.repository.name}}//GH_${{github.event.repository.name}}
+
 
 
             
